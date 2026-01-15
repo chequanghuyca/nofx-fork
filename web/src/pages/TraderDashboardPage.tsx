@@ -639,9 +639,7 @@ export function TraderDashboardPage({
                           <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-center">
                             {t('side', language)}
                           </th>
-                          <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-center">
-                            {language === 'zh' ? '操作' : 'Action'}
-                          </th>
+
                           <th
                             className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-right hidden md:table-cell"
                             title={t('entryPrice', language)}
@@ -684,6 +682,9 @@ export function TraderDashboardPage({
                           >
                             {language === 'zh' ? '强平价' : 'Liq.'}
                           </th>
+                          <th className="px-1 pb-3 font-semibold text-nofx-text-muted whitespace-nowrap text-center">
+                            {language === 'zh' ? '操作' : 'Action'}
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -715,30 +716,7 @@ export function TraderDashboardPage({
                                 )}
                               </span>
                             </td>
-                            <td className="px-1 py-3 whitespace-nowrap text-center">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleClosePosition(
-                                    pos.symbol,
-                                    pos.side.toUpperCase()
-                                  )
-                                }}
-                                disabled={closingPosition === pos.symbol}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed mx-auto bg-nofx-red/10 text-nofx-red border border-nofx-red/30 hover:bg-nofx-red/20"
-                                title={
-                                  language === 'zh' ? '平仓' : 'Close Position'
-                                }
-                              >
-                                {closingPosition === pos.symbol ? (
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <LogOut className="w-3 h-3" />
-                                )}
-                                {language === 'zh' ? '平仓' : 'Close'}
-                              </button>
-                            </td>
+
                             <td className="px-1 py-3 font-mono whitespace-nowrap text-right text-nofx-text-main hidden md:table-cell">
                               {pos.entry_price.toFixed(4)}
                             </td>
@@ -764,6 +742,29 @@ export function TraderDashboardPage({
                             </td>
                             <td className="px-1 py-3 font-mono whitespace-nowrap text-right text-nofx-text-muted hidden md:table-cell">
                               {pos.liquidation_price.toFixed(4)}
+                            </td>
+                            <td className="px-1 py-3 whitespace-nowrap text-center">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleClosePosition(
+                                    pos.symbol,
+                                    pos.side.toUpperCase()
+                                  )
+                                }}
+                                disabled={closingPosition === pos.symbol}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-all hover:scale-105 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed mx-auto bg-red-500/10 text-red-500 border border-red-500/30"
+                                title={
+                                  language === 'zh' ? '平仓' : 'Close Position'
+                                }
+                              >
+                                {closingPosition === pos.symbol ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <LogOut className="w-3 h-3" />
+                                )}
+                              </button>
                             </td>
                           </tr>
                         ))}
