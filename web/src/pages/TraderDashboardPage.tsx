@@ -594,8 +594,36 @@ export function TraderDashboardPage({
                   {t('currentPositions', language)}
                 </h2>
                 {positions && positions.length > 0 && (
-                  <div className="text-xs px-2 py-1 rounded bg-nofx-gold/10 text-nofx-gold border border-nofx-gold/20 font-mono shadow-[0_0_10px_rgba(240,185,11,0.1)]">
-                    {positions.length} {t('active', language)}
+                  <div className="flex gap-2">
+                    <div className="text-xs px-2 py-1 rounded bg-nofx-gold/10 text-nofx-gold border border-nofx-gold/20 font-mono shadow-[0_0_10px_rgba(240,185,11,0.1)]">
+                      {positions.length} {t('active', language)}
+                    </div>
+                    <div
+                      className={
+                        positions.reduce(
+                          (acc, pos) => acc + pos.unrealized_pnl,
+                          0
+                        ) >= 0
+                          ? 'text-xs px-2 py-1 rounded bg-green-500/30 text-green-400 border border-green-700 font-mono shadow-[0_0_10px_rgba(240,185,11,0.1)]'
+                          : 'text-xs px-2 py-1 rounded bg-red-500/30 text-red-400 border border-red-700 font-mono shadow-[0_0_10px_rgba(240,185,11,0.1)]'
+                      }
+                    >
+                      Total PnL:{' '}
+                      <span
+                        className={
+                          positions.reduce(
+                            (acc, pos) => acc + pos.unrealized_pnl,
+                            0
+                          ) >= 0
+                            ? 'text-green-400 font-extrabold'
+                            : 'text-red-500 font-extrabold'
+                        }
+                      >
+                        {positions
+                          .reduce((acc, pos) => acc + pos.unrealized_pnl, 0)
+                          .toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -662,7 +690,7 @@ export function TraderDashboardPage({
                         {paginatedPositions.map((pos, i) => (
                           <tr
                             key={i}
-                            className="border-b border-white/5 last:border-0 transition-all hover:bg-white/5 cursor-pointer group/row"
+                            className="border-b border-white/30 last:border-0 transition-all hover:bg-white/5 cursor-pointer group/row"
                             onClick={() => {
                               setSelectedChartSymbol(pos.symbol)
                               setChartUpdateKey(Date.now())
