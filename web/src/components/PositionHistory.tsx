@@ -1,3 +1,4 @@
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { t } from '../i18n/translations'
@@ -5,8 +6,8 @@ import { api } from '../lib/api'
 import type {
   DirectionStats,
   HistoricalPosition,
+  PositionHistoryResponse,
   SymbolStats,
-  TraderStats,
 } from '../types'
 import { MetricTooltip } from './MetricTooltip'
 
@@ -380,12 +381,6 @@ function PositionRow({ position }: { position: HistoricalPosition }) {
 
 export function PositionHistory({ traderId }: PositionHistoryProps) {
   const { language } = useLanguage()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [positions, setPositions] = useState<HistoricalPosition[]>([])
-  const [stats, setStats] = useState<TraderStats | null>(null)
-  const [symbolStats, setSymbolStats] = useState<SymbolStats[]>([])
-  const [directionStats, setDirectionStats] = useState<DirectionStats[]>([])
 
   // Pagination state
   const [pageSize, setPageSize] = useState<number>(20)
@@ -397,49 +392,23 @@ export function PositionHistory({ traderId }: PositionHistoryProps) {
   const [sortBy, setSortBy] = useState<'time' | 'pnl' | 'pnl_pct'>('time')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
-  useEffect(() => {
-    const fetchData = async (isRefresh = false) => {
-      try {
-        // Only show loading spinner on initial load, not on refresh
-        if (!isRefresh) {
-          setLoading(true)
-        }
-        setError(null)
-        // Fetch more data than needed to support filtering, but respect pageSize for initial load
-        const data = await api.getPositionHistory(
-          traderId,
-          Math.max(200, pageSize * 5)
-        )
-        setPositions(data.positions || [])
-        setStats(data.stats)
-        setSymbolStats(data.symbol_stats || [])
-        setDirectionStats(data.direction_stats || [])
-      } catch (err) {
-        // Only set error on initial load, ignore errors during refresh
-        if (!isRefresh) {
-          setError(
-            err instanceof Error ? err.message : 'Failed to load history'
-          )
-        }
-      } finally {
-        if (!isRefresh) {
-          setLoading(false)
-        }
-      }
-    }
+  // Use React Query for data fetching with cache key for invalidation
+  const { data, error, isLoading } = useQuery<PositionHistoryResponse>({
+    queryKey: ['position-history', traderId],
+    queryFn: () =>
+      api.getPositionHistory(traderId, Math.max(200, pageSize * 5)),
+    enabled: !!traderId,
+    staleTime: 15000,
+    refetchInterval: 30000,
+    placeholderData: keepPreviousData,
+  })
 
-    if (traderId) {
-      // Initial fetch
-      fetchData(false)
-
-      // Auto-refresh every 5 seconds for real-time updates
-      const refreshInterval = setInterval(() => {
-        fetchData(true)
-      }, 5000)
-
-      return () => clearInterval(refreshInterval)
-    }
-  }, [traderId, pageSize])
+  // Extract data from React Query response
+  const positions = data?.positions || []
+  const stats = data?.stats || null
+  const symbolStats = data?.symbol_stats || []
+  const directionStats = data?.direction_stats || []
+  const loading = isLoading
 
   // Get unique symbols for filter
   const uniqueSymbols = useMemo(() => {
@@ -553,7 +522,7 @@ export function PositionHistory({ traderId }: PositionHistoryProps) {
           color: '#F6465D',
         }}
       >
-        {error}
+        {error instanceof Error ? error.message : 'An error occurred'}
       </div>
     )
   }

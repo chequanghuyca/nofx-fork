@@ -1,6 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Eye, EyeOff, Loader2, LogOut } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { mutate } from 'swr'
 import { ChartTabs } from '../components/ChartTabs'
 import { DecisionCard } from '../components/DecisionCard'
 import { DeepVoidBackground } from '../components/DeepVoidBackground'
@@ -127,6 +127,7 @@ export function TraderDashboardPage({
   onNavigateToTraders,
   exchanges,
 }: TraderDashboardPageProps) {
+  const queryClient = useQueryClient()
   const [closingPosition, setClosingPosition] = useState<string | null>(null)
   const [selectedChartSymbol, setSelectedChartSymbol] = useState<
     string | undefined
@@ -209,11 +210,14 @@ export function TraderDashboardPage({
       notify.success(
         language === 'zh' ? '平仓成功' : 'Position closed successfully'
       )
-      // 使用 SWR mutate 刷新数据而非重新加载页面
-      await Promise.all([
-        mutate(`positions-${selectedTraderId}`),
-        mutate(`account-${selectedTraderId}`),
-      ])
+      // Use React Query to refresh data instead of reloading the page
+      queryClient.invalidateQueries({
+        queryKey: ['positions', selectedTraderId],
+      })
+      queryClient.invalidateQueries({ queryKey: ['account', selectedTraderId] })
+      queryClient.invalidateQueries({
+        queryKey: ['position-history', selectedTraderId],
+      })
     } catch (err: unknown) {
       const errorMsg =
         err instanceof Error

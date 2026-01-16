@@ -1,27 +1,27 @@
-import { useState } from 'react'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts'
-import useSWR from 'swr'
-import { api } from '../lib/api'
-import { useLanguage } from '../contexts/LanguageContext'
-import { useAuth } from '../contexts/AuthContext'
-import { t } from '../i18n/translations'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
+  TrendingDown as ArrowDown,
+  TrendingUp as ArrowUp,
   BarChart3,
   DollarSign,
   Percent,
-  TrendingUp as ArrowUp,
-  TrendingDown as ArrowDown,
 } from 'lucide-react'
+import { useState } from 'react'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { useAuth } from '../contexts/AuthContext'
+import { useLanguage } from '../contexts/LanguageContext'
+import { t } from '../i18n/translations'
+import { api } from '../lib/api'
 
 interface EquityPoint {
   timestamp: string
@@ -41,32 +41,37 @@ export function EquityChart({ traderId, embedded = false }: EquityChartProps) {
   const { user, token } = useAuth()
   const [displayMode, setDisplayMode] = useState<'dollar' | 'percent'>('dollar')
 
-  const { data: history, error, isLoading } = useSWR<EquityPoint[]>(
-    user && token && traderId ? `equity-history-${traderId}` : null,
-    () => api.getEquityHistory(traderId),
-    {
-      refreshInterval: 30000, // 30秒刷新（历史数据更新频率较低）
-      revalidateOnFocus: false,
-      dedupingInterval: 20000,
-    }
-  )
+  const {
+    data: history,
+    error,
+    isLoading,
+  } = useQuery<EquityPoint[]>({
+    queryKey: ['equity-history', traderId],
+    queryFn: () => api.getEquityHistory(traderId),
+    enabled: !!(user && token && traderId),
+    staleTime: 30000,
+    refetchInterval: 60000,
+    placeholderData: keepPreviousData,
+  })
 
-  const { data: account } = useSWR(
-    user && token && traderId ? `account-${traderId}` : null,
-    () => api.getAccount(traderId),
-    {
-      refreshInterval: 15000, // 15秒刷新（配合后端缓存）
-      revalidateOnFocus: false,
-      dedupingInterval: 10000,
-    }
-  )
+  const { data: account } = useQuery({
+    queryKey: ['account', traderId],
+    queryFn: () => api.getAccount(traderId),
+    enabled: !!(user && token && traderId),
+    staleTime: 15000,
+    refetchInterval: 30000,
+    placeholderData: keepPreviousData,
+  })
 
   // Loading state - show skeleton
   if (isLoading) {
     return (
       <div className={embedded ? 'p-6' : 'binance-card p-6'}>
         {!embedded && (
-          <h3 className="text-lg font-semibold mb-6" style={{ color: '#EAECEF' }}>
+          <h3
+            className="text-lg font-semibold mb-6"
+            style={{ color: '#EAECEF' }}
+          >
             {t('accountEquityCurve', language)}
           </h3>
         )}
@@ -108,7 +113,10 @@ export function EquityChart({ traderId, embedded = false }: EquityChartProps) {
     return (
       <div className={embedded ? 'p-6' : 'binance-card p-6'}>
         {!embedded && (
-          <h3 className="text-lg font-semibold mb-6" style={{ color: '#EAECEF' }}>
+          <h3
+            className="text-lg font-semibold mb-6"
+            style={{ color: '#EAECEF' }}
+          >
             {t('accountEquityCurve', language)}
           </h3>
         )}
@@ -212,7 +220,11 @@ export function EquityChart({ traderId, embedded = false }: EquityChartProps) {
   }
 
   return (
-    <div className={embedded ? 'p-3 sm:p-5' : 'binance-card p-3 sm:p-5 animate-fade-in'}>
+    <div
+      className={
+        embedded ? 'p-3 sm:p-5' : 'binance-card p-3 sm:p-5 animate-fade-in'
+      }
+    >
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
         <div className="flex-1">

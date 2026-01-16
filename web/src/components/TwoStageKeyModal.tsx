@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { t, type Language } from '../i18n/translations'
 import { toast } from 'sonner'
+import { t, type Language } from '../i18n/translations'
 import { WebCryptoEnvironmentCheck } from './WebCryptoEnvironmentCheck'
 
 const DEFAULT_LENGTH = 64
@@ -65,8 +65,8 @@ export function TwoStageKeyModal({
 
   // UX improvement: Use 58 + 6 split (most of the key + last 6 chars)
   // Advantage: Second stage only requires entering 6 characters, much easier to count
-  const expectedPart1Length = expectedLength - 6  // 64 - 6 = 58
-  const expectedPart2Length = 6  // Last 6 characters
+  const expectedPart1Length = expectedLength - 6 // 64 - 6 = 58
+  const expectedPart2Length = 6 // Last 6 characters
 
   useEffect(() => {
     if (isOpen && stage === 1 && stage1Ref.current) {
@@ -105,14 +105,16 @@ export function TwoStageKeyModal({
             ...obfuscationLog,
             `Stage 1: ${new Date().toISOString()} - Auto copied obfuscation`,
           ])
-          toast.success('已复制混淆字符串到剪贴板')
+          toast.success('Obfuscation string copied to clipboard')
         } catch {
           setClipboardStatus('failed')
           setObfuscationLog([
             ...obfuscationLog,
             `Stage 1: ${new Date().toISOString()} - Auto copy failed, manual required`,
           ])
-          toast.error('复制失败，请手动复制混淆字符串')
+          toast.error(
+            'Copy failed, please copy the obfuscation string manually'
+          )
         }
       } else {
         setClipboardStatus('failed')
@@ -120,7 +122,7 @@ export function TwoStageKeyModal({
           ...obfuscationLog,
           `Stage 1: ${new Date().toISOString()} - Clipboard API not available`,
         ])
-        toast('当前浏览器不支持自动复制，请手动复制')
+        toast('Auto copy not supported in this browser, please copy manually')
       }
 
       setTimeout(() => {
