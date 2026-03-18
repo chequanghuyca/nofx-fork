@@ -210,11 +210,11 @@ type BoxData struct {
 type RegimeLevel string
 
 const (
-	RegimeLevelNarrow   RegimeLevel = "narrow"   // 窄幅震荡
-	RegimeLevelStandard RegimeLevel = "standard" // 标准震荡
-	RegimeLevelWide     RegimeLevel = "wide"     // 宽幅震荡
-	RegimeLevelVolatile RegimeLevel = "volatile" // 剧烈震荡
-	RegimeLevelTrending RegimeLevel = "trending" // 趋势
+	RegimeLevelNarrow   RegimeLevel = "narrow"   // narrow range oscillation
+	RegimeLevelStandard RegimeLevel = "standard" // standard oscillation
+	RegimeLevelWide     RegimeLevel = "wide"     // wide range oscillation
+	RegimeLevelVolatile RegimeLevel = "volatile" // extreme volatility
+	RegimeLevelTrending RegimeLevel = "trending" // trending
 )
 
 // BreakoutLevel represents which box level has been broken
@@ -226,3 +226,37 @@ const (
 	BreakoutMid   BreakoutLevel = "mid"
 	BreakoutLong  BreakoutLevel = "long"
 )
+
+// GridDirection represents the current grid trading direction bias
+type GridDirection string
+
+const (
+	GridDirectionNeutral   GridDirection = "neutral"     // 50% buy + 50% sell
+	GridDirectionLong      GridDirection = "long"        // 100% buy
+	GridDirectionShort     GridDirection = "short"       // 100% sell
+	GridDirectionLongBias  GridDirection = "long_bias"   // 70% buy + 30% sell (default)
+	GridDirectionShortBias GridDirection = "short_bias"  // 30% buy + 70% sell (default)
+)
+
+// GetBuySellRatio returns the buy and sell ratio for this direction
+// biasRatio is the ratio for biased directions (default 0.7 means 70%/30%)
+func (d GridDirection) GetBuySellRatio(biasRatio float64) (buyRatio, sellRatio float64) {
+	if biasRatio <= 0 || biasRatio > 1 {
+		biasRatio = 0.7 // Default 70%/30%
+	}
+
+	switch d {
+	case GridDirectionNeutral:
+		return 0.5, 0.5
+	case GridDirectionLong:
+		return 1.0, 0.0
+	case GridDirectionShort:
+		return 0.0, 1.0
+	case GridDirectionLongBias:
+		return biasRatio, 1.0 - biasRatio
+	case GridDirectionShortBias:
+		return 1.0 - biasRatio, biasRatio
+	default:
+		return 0.5, 0.5
+	}
+}

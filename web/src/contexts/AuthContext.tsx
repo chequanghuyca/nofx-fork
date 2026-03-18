@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
 import { getSystemConfig } from '../lib/config'
-import { httpClient, reset401Flag } from '../lib/httpClient'
+import { reset401Flag, httpClient } from '../lib/httpClient'
 
 interface User {
   id: string
@@ -16,12 +16,6 @@ interface AuthContextType {
   ) => Promise<{
     success: boolean
     message?: string
-    userID?: string
-    requiresOTP?: boolean
-    requiresOTPSetup?: boolean
-    qrCodeURL?: string
-    otpSecret?: string
-    email?: string
   }>
   loginAdmin: (password: string) => Promise<{
     success: boolean
@@ -31,25 +25,10 @@ interface AuthContextType {
     email: string,
     password: string,
     betaCode?: string
-  ) => Promise<{
-    success: boolean
-    message?: string
-    userID?: string
-    otpSecret?: string
-    qrCodeURL?: string
-  }>
-  verifyOTP: (
-    userID: string,
-    otpCode: string
-  ) => Promise<{ success: boolean; message?: string }>
-  completeRegistration: (
-    userID: string,
-    otpCode: string
   ) => Promise<{ success: boolean; message?: string }>
   resetPassword: (
     email: string,
-    newPassword: string,
-    otpCode: string
+    newPassword: string
   ) => Promise<{ success: boolean; message?: string }>
   logout: () => void
   isLoading: boolean
@@ -66,10 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Reset 401 flag on page load to allow fresh 401 handling
     reset401Flag()
 
-    // Check system config and local storage for auth state
+    // Check if admin mode is active (uses cached system config)
     getSystemConfig()
       .then(() => {
-        // Check local storage for saved auth state
+        // No longer simulate login in admin mode; check local storage uniformly
         const savedToken = localStorage.getItem('auth_token')
         const savedUser = localStorage.getItem('auth_user')
         if (savedToken && savedUser) {
@@ -81,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch((err) => {
         console.error('Failed to fetch system config:', err)
-        // On error, continue to check local storage
+        // On error, continue checking local storage
         const savedToken = localStorage.getItem('auth_token')
         const savedUser = localStorage.getItem('auth_user')
 
@@ -123,38 +102,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json()
 
       if (response.ok) {
-        // Check for OTP setup required (incomplete registration)
-        if (data.requires_otp_setup) {
-          return {
-            success: true,
-            userID: data.user_id,
-            requiresOTPSetup: true,
-            message: data.message,
-            qrCodeURL: data.qr_code_url,
-            otpSecret: data.otp_secret,
-            email: data.email,
+        if (data.token) {
+          // Reset 401 flag on successful login
+          reset401Flag()
+
+          const userInfo = { id: data.user_id, email: data.email }
+          setToken(data.token)
+          setUser(userInfo)
+          localStorage.setItem('auth_token', data.token)
+          localStorage.setItem('auth_user', JSON.stringify(userInfo))
+
+          // Check and redirect to returnUrl if exists
+          const returnUrl = sessionStorage.getItem('returnUrl')
+          if (returnUrl) {
+            sessionStorage.removeItem('returnUrl')
+            window.history.pushState({}, '', returnUrl)
+            window.dispatchEvent(new PopStateEvent('popstate'))
+          } else {
+            // Redirect to config page
+            window.history.pushState({}, '', '/traders')
+            window.dispatchEvent(new PopStateEvent('popstate'))
           }
+
+          return { success: true, message: data.message }
         }
-        // Check for OTP verification required (normal login flow)
-        if (data.requires_otp) {
-          return {
-            success: true,
-            userID: data.user_id,
-            requiresOTP: true,
-            message: data.message,
-            qrCodeURL: data.qr_code_url,
-            otpSecret: data.otp_secret,
-          }
-        }
+
         // Unexpected success response
-        return { success: false, message: 'Unexpected login response' }
+        return { success: false, message: data.message || 'Unexpected login response' }
       } else {
         return {
           success: false,
           message: data.error,
-          qrCodeURL: data.qr_code_url,
-          otpSecret: data.otp_secret,
-          userID: data.user_id,
         }
       }
     } catch (error) {
@@ -190,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           window.history.pushState({}, '', returnUrl)
           window.dispatchEvent(new PopStateEvent('popstate'))
         } else {
-          // Navigate to dashboard
+          // Redirect to dashboard
           window.history.pushState({}, '', '/dashboard')
           window.dispatchEvent(new PopStateEvent('popstate'))
         }
@@ -219,18 +197,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const result = await httpClient.post<{
+        token: string
         user_id: string
-        otp_secret: string
-        qr_code_url: string
+        email: string
         message: string
       }>('/api/register', requestBody)
 
       if (result.success && result.data) {
+        // Reset 401 flag on successful login
+        reset401Flag()
+
+        const userInfo = { id: result.data.user_id, email: result.data.email }
+        setToken(result.data.token)
+        setUser(userInfo)
+        localStorage.setItem('auth_token', result.data.token)
+        localStorage.setItem('auth_user', JSON.stringify(userInfo))
+
+        // Check and redirect to returnUrl if exists
+        const returnUrl = sessionStorage.getItem('returnUrl')
+        if (returnUrl) {
+          sessionStorage.removeItem('returnUrl')
+          window.history.pushState({}, '', returnUrl)
+          window.dispatchEvent(new PopStateEvent('popstate'))
+        } else {
+          // Redirect to config page
+          window.history.pushState({}, '', '/traders')
+          window.dispatchEvent(new PopStateEvent('popstate'))
+        }
+
         return {
           success: true,
-          userID: result.data.user_id,
-          otpSecret: result.data.otp_secret,
-          qrCodeURL: result.data.qr_code_url,
           message: result.message || result.data.message,
         }
       }
@@ -241,117 +237,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         message: result.message || 'Registration failed',
       }
     } catch (error) {
-      console.error('Auth register error:', error)
+      console.error('Auth register error:', error);
       // Re-throw if it's a critical error, or return structured error
       // Since httpClient throws on 500, we should return a structured error response
       // to let the UI display it gracefully without crashing.
       return {
         success: false,
-        message:
-          error instanceof Error ? error.message : 'Detailed server error',
+        message: error instanceof Error ? error.message : 'Detailed server error'
       }
     }
   }
 
-  const verifyOTP = async (userID: string, otpCode: string) => {
-    try {
-      const response = await fetch('/api/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: userID, otp_code: otpCode }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Reset 401 flag on successful login
-        reset401Flag()
-
-        // Login successful, save token and user info
-        const userInfo = { id: data.user_id, email: data.email }
-        setToken(data.token)
-        setUser(userInfo)
-        localStorage.setItem('auth_token', data.token)
-        localStorage.setItem('auth_user', JSON.stringify(userInfo))
-
-        // Check and redirect to returnUrl if exists
-        const returnUrl = sessionStorage.getItem('returnUrl')
-        if (returnUrl) {
-          sessionStorage.removeItem('returnUrl')
-          window.history.pushState({}, '', returnUrl)
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        } else {
-          // Navigate to traders page
-          window.history.pushState({}, '', '/traders')
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        }
-
-        return { success: true, message: data.message }
-      } else {
-        return { success: false, message: data.error }
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: 'OTP verification failed, please try again',
-      }
-    }
-  }
-
-  const completeRegistration = async (userID: string, otpCode: string) => {
-    try {
-      const response = await fetch('/api/complete-registration', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: userID, otp_code: otpCode }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Reset 401 flag on successful login
-        reset401Flag()
-
-        // Registration complete, auto login
-        const userInfo = { id: data.user_id, email: data.email }
-        setToken(data.token)
-        setUser(userInfo)
-        localStorage.setItem('auth_token', data.token)
-        localStorage.setItem('auth_user', JSON.stringify(userInfo))
-
-        // Check and redirect to returnUrl if exists
-        const returnUrl = sessionStorage.getItem('returnUrl')
-        if (returnUrl) {
-          sessionStorage.removeItem('returnUrl')
-          window.history.pushState({}, '', returnUrl)
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        } else {
-          // Navigate to traders page
-          window.history.pushState({}, '', '/traders')
-          window.dispatchEvent(new PopStateEvent('popstate'))
-        }
-
-        return { success: true, message: data.message }
-      } else {
-        return { success: false, message: data.error }
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: 'Registration failed, please try again',
-      }
-    }
-  }
-
-  const resetPassword = async (
-    email: string,
-    newPassword: string,
-    otpCode: string
-  ) => {
+  const resetPassword = async (email: string, newPassword: string) => {
     try {
       const response = await fetch('/api/reset-password', {
         method: 'POST',
@@ -361,7 +258,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({
           email,
           new_password: newPassword,
-          otp_code: otpCode,
         }),
       })
 
@@ -373,10 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, message: data.error }
       }
     } catch (error) {
-      return {
-        success: false,
-        message: 'Password reset failed, please try again',
-      }
+      return { success: false, message: 'Password reset failed, please try again' }
     }
   }
 
@@ -404,8 +297,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         loginAdmin,
         register,
-        verifyOTP,
-        completeRegistration,
         resetPassword,
         logout,
         isLoading,

@@ -81,6 +81,10 @@ type GridStrategyConfig struct {
 	DailyLossLimitPct float64 `json:"daily_loss_limit_pct"`
 	// Use maker-only orders for lower fees
 	UseMakerOnly bool `json:"use_maker_only"`
+	// Enable automatic grid direction adjustment based on box breakouts
+	EnableDirectionAdjust bool `json:"enable_direction_adjust"`
+	// Direction bias ratio for long_bias/short_bias modes (default 0.7 = 70%/30%)
+	DirectionBiasRatio float64 `json:"direction_bias_ratio"`
 }
 
 // PromptSectionsConfig editable sections of System Prompt
@@ -107,14 +111,20 @@ type CoinSourceConfig struct {
 	UseAI500 bool `json:"use_ai500"`
 	// AI500 coin pool maximum count
 	AI500Limit int `json:"ai500_limit,omitempty"`
-	// whether to use OI Top (持仓增加榜，适合做多)
+	// whether to use OI Top (OI increase ranking, suitable for long positions)
 	UseOITop bool `json:"use_oi_top"`
 	// OI Top maximum count
 	OITopLimit int `json:"oi_top_limit,omitempty"`
-	// whether to use OI Low (持仓减少榜，适合做空)
+	// whether to use OI Low (OI decrease ranking, suitable for short positions)
 	UseOILow bool `json:"use_oi_low"`
 	// OI Low maximum count
 	OILowLimit int `json:"oi_low_limit,omitempty"`
+	// whether to use Hyperliquid All coins (all available perp pairs)
+	UseHyperAll bool `json:"use_hyper_all"`
+	// whether to use Hyperliquid Main coins (top N by 24h volume)
+	UseHyperMain bool `json:"use_hyper_main"`
+	// Hyperliquid Main maximum count (default 20)
+	HyperMainLimit int `json:"hyper_main_limit,omitempty"`
 	// Note: API URLs are now built automatically using NofxOSAPIKey from IndicatorConfig
 }
 
